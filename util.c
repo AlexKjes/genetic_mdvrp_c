@@ -17,7 +17,7 @@ int randComp(const void* i1, const void* i2){
 
 void randIntArr(int low, int high, int size, int* buffer){
     for (int i=0;i<size;i++){
-        buffer[i] = rand() % (high-low) + high;
+        buffer[i] = getRandInt() % (high-low) + high;
     }
 }
 
@@ -26,5 +26,9 @@ int getRandInt(){
     if (r == NULL){
         r = gsl_rng_alloc(gsl_rng_default);
     }
-    return gsl_rng_get(r);
+    return gsl_rng_get(r)/2;
+}
+
+double normalRand(){
+    return gsl_rng_uniform(r);
 }

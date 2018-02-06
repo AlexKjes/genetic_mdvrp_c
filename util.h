@@ -13,7 +13,7 @@ void randIntArr(int low, int high, int size, int* buffer);
 
 int randComp(const void* i1, const void* i2);
 
-
+double normalRand();
 
 #endif //ASSIGN1_C_UTIL_H
 
