@@ -21,7 +21,10 @@ Genotype* initGenotype(MDVRP* mdvrp);
 int routeMax(MDVRP* mdvrp);
 int customerDemandComp(const void* customer1, const void* customer2);
 
-Genotype* makeRandomSpecimen(MDVRP mdvrp);
+
+
+
+Genotype* makeRandomSpecimen(MDVRP* mdvrp);
 
 
 #endif //ASSIGN1_C_GENETICS_H

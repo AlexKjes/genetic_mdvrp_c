@@ -3,6 +3,8 @@
 //
 
 #include "genetics.h"
+#include "util.h"
+
 
 /// return nCustomers on longest possible route
 int routeMax(MDVRP* mdvrp){
@@ -11,7 +13,7 @@ int routeMax(MDVRP* mdvrp){
     for (int i=0;i<mdvrp->nCustomers;i++){
         sortCustomers[i] = mdvrp->customers[i];
     }
-    qsort(sortCustomers, mdvrp->nCustomers, sizeof(Customer), customerDemandComp);
+    qsort(sortCustomers, (size_t)mdvrp->nCustomers, sizeof(Customer), customerDemandComp);
     // find largest truck
     int maxLoad = 0;
     for (int i=0;i<mdvrp->nDepots;i++){
@@ -42,6 +44,8 @@ int customerDemandComp(const void* customer1, const void* customer2){
     return 0;
 }
 
+
+
 /// make a genotype
 Genotype* initGenotype(MDVRP* mdvrp){
 
@@ -60,8 +64,26 @@ Genotype* initGenotype(MDVRP* mdvrp){
 }
 
 
-Genotype* makeRandomSpecimen(MDVRP mdvrp){
+Genotype* makeRandomSpecimen(MDVRP* mdvrp){
 
 
+
+    Genotype* g = initGenotype(mdvrp);
+
+    int score[g->m];
+    for (int i=0;i<g->m;i++) { score[i]=0; }
+
+    int shuffle[mdvrp->nCustomers];
+    for (int i=0;i<mdvrp->nCustomers;i++) { shuffle[i]=i; }
+    qsort(shuffle, (size_t)mdvrp->nCustomers, sizeof(int), randComp);
+    printf("yolo\n");
+    for (int i=0;i<mdvrp->nCustomers;i++){
+        printf("%d\n", shuffle[i]);
+    }
+    for (int i=0;i<mdvrp->nCustomers;i++){
+        int rnd = rand() % g->m;
+    }
+
+    return g;
 
 }

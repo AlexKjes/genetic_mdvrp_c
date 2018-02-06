@@ -5,7 +5,7 @@
 int main() {
     // ./Testing Data/Data Files/p01
     MDVRP* mdvrp = loadProblem("../Testing Data/Data Files/p01");
-    routeMax(mdvrp);
+    makeRandomSpecimen(mdvrp);
 
     return 0;
 }
