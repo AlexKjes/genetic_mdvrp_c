@@ -84,10 +84,10 @@ MDVRP* loadProblem(char* filePath){
             mdvrp->customers[intBuff[0]-1].y = intBuff[2];
             mdvrp->customers[intBuff[0]-1].demand = intBuff[4];
             // read depots part 2
-        } else if (i<mdvrp->nDepots+mdvrp->nCustomers+1){
+        } else if (i<mdvrp->nDepots*2+mdvrp->nCustomers+1){
             int id = i-mdvrp->nCustomers-mdvrp->nDepots-1;
-            mdvrp->depots[id].x = line[1];
-            mdvrp->depots[id].y = line[2];
+            mdvrp->depots[id].x = intBuff[1];
+            mdvrp->depots[id].y = intBuff[2];
         }
         i++;
     }

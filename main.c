@@ -1,14 +1,15 @@
 #include <stdio.h>
 #include "mdvrp.h"
 #include "genetics.h"
+#include "output.h"
 
 int main() {
+
     // ./Testing Data/Data Files/p01
     MDVRP* mdvrp = loadProblem("../Testing Data/Data Files/p01");
     int popSize = 10;
-
     Genotype** population = generateRandomPopulation(mdvrp, popSize);
-
+    /*
     double fitness[popSize];
     calculateFitness(mdvrp, population, popSize, fitness);
 
@@ -34,6 +35,13 @@ int main() {
     }
 
     //nextGeneration(mdvrp, 1, 0.1, 0, popSize, fitness, population);
+    */
+
+    initGNUPlotPipe();
+    drawMDVRP(mdvrp);
+
+
+
 
 
 
