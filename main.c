@@ -39,8 +39,8 @@ int main() {
 
     initGNUPlotPipe();
     drawMDVRP(mdvrp);
-
-
+    drawSpecimen(mdvrp, population[0]);
+    drawSpecimen(mdvrp, population[5]);
 
 
 
