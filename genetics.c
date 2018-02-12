@@ -3,6 +3,7 @@
 //
 
 #include <math.h>
+#include <string.h>
 #include "genetics.h"
 #include "util.h"
 #include "mdvrp.h"
@@ -66,7 +67,7 @@ Genotype* initGenotype(MDVRP* mdvrp){
 }
 
 
-Genotype* makeRandomSpecimen(MDVRP* mdvrp){
+Genotype*  makeRandomSpecimen(MDVRP* mdvrp){
 
     Genotype* g = initGenotype(mdvrp);
     // Number of customers per truck
@@ -83,7 +84,7 @@ Genotype* makeRandomSpecimen(MDVRP* mdvrp){
         qsort(rnd, (size_t)g->m, sizeof(int), randComp);
         for (int j=0;j<g->m;j++){
             g->matrix[rnd[j]*g->n+routeLengths[rnd[j]]] = shuffle[i];
-            if (validateTruck(mdvrp, rnd[j], g)){
+            if (routeLengths[rnd[j]] < g->n){
                 routeLengths[rnd[j]]++;
                 break;
             }
@@ -136,10 +137,31 @@ int validateTruck(MDVRP* mdvrp, int truck, Genotype* genotype){
 
 
 int validateSpecimen(MDVRP* mdvrp, Genotype* genotype){
+    /*
     for (int i=0;i<genotype->m;i++){
         if (!validateTruck(mdvrp, i, genotype)){
             return 0;
         }
+    }
+    */
+    //int cust[mdvrp->nCustomers];
+    //only if broken
+    /*
+    for (int i=0;i<genotype->m*genotype->n;i++) {
+        if (genotype->matrix[i] != -1) { cust[genotype->matrix[i]]++; }
+    }
+    for (int i=0;i<mdvrp->nCustomers;i++) {
+        if (cust[i] != 1) {
+            return 0;
+        }
+    }
+    */
+    int taken[mdvrp->nCustomers];
+    for (int i=0;i<(genotype->n*genotype->m);i++){
+        if (genotype->matrix[i] != -1){ taken[genotype->matrix[i]] = 1; }
+    }
+    for (int i=0;i<mdvrp->nCustomers;i++){
+        if (taken[i] != 1){ return 0; }
     }
     return 1;
 }
@@ -196,8 +218,26 @@ int calculateSpecimenLoad(MDVRP* mdvrp, Genotype* genotype){
 
 void calculateFitness(MDVRP* mdvrp, Genotype** population, int popSize, double* fitness){
 
+    int depot;
+    int load;
+    double dist;
+
     for (int i=0;i<popSize;i++){
-        fitness[i] = calculateSpecimenDistance(mdvrp, population[i]);
+        fitness[i] = 0;
+        for (int j=0;j<population[0]->m;j++){
+            depot = j / mdvrp->trucksPerDepot;
+            dist = calculateTruckDistance(mdvrp, j, population[i]);
+            if (mdvrp->depots[depot].maxRoute != 0 && dist > mdvrp->depots[depot].maxRoute){
+                dist *= dist;
+            }
+            load = calculateTruckLoad(mdvrp, j, population[i]);
+            if (load > mdvrp->depots[depot].maxLoad){
+                //printf("%d\n", ((load - mdvrp->depots[depot].maxLoad) + 1)*1000);
+                dist += ((load - mdvrp->depots[depot].maxLoad) + 1)*10;
+            }
+            fitness[i] += dist;
+        }
+        //fitness[i] = calculateSpecimenDistance(mdvrp, population[i]);
     }
 
 }
@@ -272,7 +312,7 @@ void crossoverSelection(int popSize, double* fitness, int* parents) {
 }
 
 
-void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int crossover, int popSize, double* fitness, Genotype** population){
+void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int doCrossover, int popSize, double* fitness, Genotype** population){
 
     Genotype** tmpPop = malloc(sizeof(Genotype*)*popSize);
 
@@ -286,66 +326,229 @@ void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int crossove
     // set off elites
     qsort(fitSortIxd, (size_t)popSize, sizeof(double)*2, parentOrderComp);
     for (int i=0;i<elitism;i++){
-        tmpPop[i] = population[(int)fitSortIxd[i*2]];
+        tmpPop[i] = cloneGenotype(population[(int)fitSortIxd[i*2]]);
     }
 
     int parents[popSize*2];
     crossoverSelection(popSize, fitness, parents);
-    if (crossover){
-        // do crossover
+    if (normalRand()<.5){
+        for (int i=0;i<popSize-elitism;i++){
+            tmpPop[i+elitism] = crossover(mdvrp, population[parents[i*2]], population[parents[i*2+1]]);
+            if(!validateSpecimen(mdvrp, tmpPop[i+elitism])) {
+                i--;
+            }
+        };
     } else {
         for (int i=0;i<popSize-elitism;i++){
-            tmpPop[i+elitism] = population[parents[i*2]];
+            tmpPop[i+elitism] = cloneGenotype(population[parents[i*2]]);
         }
     }
 
-    mutatePopulation(mdvrp, mutationRate, popSize-elitism, tmpPop+3);
+    mutatePopulation(mdvrp, mutationRate, popSize-elitism, &tmpPop[elitism]);
+    destroyPopulation(popSize, population);
+    for (int i=0;i<popSize;i++){
+        population[i] = tmpPop[i];
+    }
 
-
+    // free up
+    free(tmpPop);
 }
 
 
 void mutatePopulation(MDVRP* mdvrp, double mutationRate, int popSize, Genotype** population){
     for (int i=0;i<popSize;i++){
-        mutateSpecimen(mdvrp, mutationRate, population[i]);
+        for (int j=0;j<mdvrp->nCustomers;j++) {
+            if (normalRand() < mutationRate) {
+                switch (getRandInt() % 1) {
+                    case 0:
+                        swapMutate(mdvrp, population[i]);
+                        break;
+                    case 1:
+                        shuffleSegmentMutate(mdvrp, population[i]);
+                        break;
+                    case 2:
+                        swapTruckMutate(mdvrp, population[i]);
+                        break;
+                    case 3:
+                        swapInRouteMutate(mdvrp, population[i]);
+                        break;
+                }
+            }
+        }
     }
 }
 
-void mutateSpecimen(MDVRP* mdvrp, double mutationRate, Genotype* specimen){
-    int retry = 0;
-    for (int i=0;i<mdvrp->nCustomers;i++){
-        if (retry || mutationRate > normalRand()){
-            retry = 0;
-            int segLen = (getRandInt() % 3)+1;
-            int from = getRandInt() % (specimen->m*specimen->n-segLen);
-            int to = getRandInt() % (specimen->m*specimen->n-segLen);
-            int tmpTo[segLen];
-            int tmpFrom[segLen];
+void swapMutate(MDVRP *mdvrp, Genotype *specimen){
+    while (1) {
+        int segLen = 1;//(getRandInt() % 3)+1;
+        int from = getRandInt() % (specimen->m*specimen->n-segLen);
+        int to = getRandInt() % (specimen->m*specimen->n-segLen);
+        int tmpTo[segLen];
+        int tmpFrom[segLen];
+        for (int j=0;j<segLen;j++){
+            tmpFrom[j] = specimen->matrix[from+j];
+            tmpTo[j] = specimen->matrix[to+j];
+            specimen->matrix[from+j] = specimen->matrix[to+j];
+        }
+        // 50/50 chance to reverse segment
+        if (normalRand() >= 1){
             for (int j=0;j<segLen;j++){
-                tmpFrom[j] = specimen->matrix[from+j];
-                tmpTo[j] = specimen->matrix[to+j];
-                specimen->matrix[from+j] = specimen->matrix[to+j];
+                specimen->matrix[to+j] = tmpFrom[j];
             }
-            // 50/50 chance to reverse segment
-            if (normalRand() > 0.5){
-                for (int j=0;j<segLen;j++){
-                    specimen->matrix[to+j] = tmpFrom[j];
-                }
-            } else {
-                for (int j=0;j<segLen;j++){
-                    specimen->matrix[to+j] = tmpFrom[segLen-1-j];
-                }
+        } else {
+            for (int j=0;j<segLen;j++){
+                specimen->matrix[to+j] = tmpFrom[segLen-1-j];
             }
-            // retry if not valid
-            if (!validateSpecimen(mdvrp, specimen)){
-                retry = 1;
-                i--;
-                for (int j=0;j<segLen;j++){
-                    specimen->matrix[to+j] = tmpTo[j];
-                    specimen->matrix[from+j] = tmpFrom[j];
-                }
+        }
+        // retry if not valid
+        if (!validateSpecimen(mdvrp, specimen)){
+            for (int j=0;j<segLen;j++){
+                specimen->matrix[to+j] = tmpTo[j];
+                specimen->matrix[from+j] = tmpFrom[j];
             }
+        } else {
+            break;
+        }
 
+    }
+}
+
+
+void shuffleSegmentMutate(MDVRP *mdvrp, Genotype *specimen){
+    while (1) {
+        int segLen = (getRandInt() % 5) + 2;
+        int from = getRandInt() % (specimen->m * specimen->n - segLen);
+        int tmp[segLen];
+        for (int i = 0; i < segLen; i++) {
+            tmp[i] = specimen->matrix[i + from];
+        }
+
+        qsort(&specimen->matrix[from], (size_t) segLen, sizeof(int), randComp);
+        if (!validateSpecimen(mdvrp, specimen)) {
+            for (int i = 0; i < segLen; i++) {
+                specimen->matrix[i+from] = tmp[i];
+            }
+        } else {
+            break;
         }
     }
+}
+
+
+void swapTruckMutate(MDVRP *mdvrp, Genotype *specimen){
+
+    int t1 = getRandInt() % specimen->m;
+    int t2 = getRandInt() % specimen->m;
+    int tmp;
+
+    for (int i=0;i<specimen->n;i++){
+        tmp = specimen->matrix[t1*specimen->n+i];
+        specimen->matrix[t1*specimen->n+i] = specimen->matrix[t2*specimen->n+i];
+        specimen->matrix[t2*specimen->n+i] = tmp;
+    }
+
+}
+
+
+void swapInRouteMutate(MDVRP *mdvrp, Genotype *specimen){
+
+    int truck = (getRandInt() % specimen->m)*specimen->n;
+    int from = getRandInt() % (specimen->n-2);
+    int segLen = 1; //getRandInt() % specimen->n-segLen-1;
+    int to = (getRandInt() % (specimen->n-from-segLen))+segLen+from;
+
+
+    for (int i=0;i<segLen;i++){
+        int tmp = specimen->matrix[truck+to];
+        specimen->matrix[truck+to] = specimen->matrix[truck+from];
+        specimen->matrix[truck+from] = tmp;
+    }
+
+
+}
+
+
+
+void destroyPopulation(int popSize, Genotype** population){
+    for (int i=0;i<popSize;i++){
+        if (population[i] != NULL) {
+            destroySpecimen(population[i]);
+        }
+    }
+}
+
+
+void destroySpecimen(Genotype* specimen){
+
+    free(specimen->matrix);
+    free(specimen);
+
+}
+
+
+Genotype* cloneGenotype(Genotype* specimen){
+
+    Genotype* ret = malloc(sizeof(Genotype));
+    ret->m = specimen->m;
+    ret->n = specimen->n;
+
+    size_t size = sizeof(int)*ret->m*ret->n;
+    ret->matrix = malloc(size);
+    memcpy(ret->matrix, specimen->matrix, size);
+
+    return ret;
+}
+
+
+void printSpecimen(Genotype* specimen){
+    for (int i=0;i<specimen->m;i++){
+        for (int j=0;j<specimen->n;j++){
+            printf("%d\t", specimen->matrix[i*specimen->n+j]);
+        }
+        printf("\n");
+    }
+}
+
+Genotype* crossover(MDVRP* mdvrp, Genotype* p1, Genotype* p2){
+    Genotype* child = initGenotype(mdvrp);
+
+    int map[mdvrp->nCustomers*2];
+    for (int i=0;i<(p1->m*p1->n);i++){
+        if (p1->matrix[i] != -1){
+            map[p1->matrix[i]*2] = i;
+        }
+        if (p2->matrix[i] != -1){
+            map[p2->matrix[i]*2+1] = i;
+        }
+    }
+
+    int idx;
+    int parts[4] = {mdvrp->nCustomers/4, 2*mdvrp->nCustomers/4, 3*mdvrp->nCustomers/4, mdvrp->nCustomers};
+    for (int i=0;i<mdvrp->nCustomers;i++){
+        if (i < parts[0] || (i > parts[1] && i < parts[2])) {
+            idx = map[i * 2];
+        } else { idx = map[i * 2+1]; }
+        if(child->matrix[idx] == -1) { child->matrix[idx] = i; }
+        else {
+            int j=1;
+            while (1) {
+                //printf("%d\n", j);
+                if ((idx+j) < (p1->m*p1->n)) {
+                    if (child->matrix[idx + j] == -1) {
+                        child->matrix[idx + j] = i;
+                        break;
+                    }
+                } else if((idx-j) >= 0) {
+                    if (child->matrix[idx - j] == -1) {
+                        child->matrix[idx - j] = i;
+                        break;
+                    }
+                }
+                j++;
+            }
+        }
+
+    }
+    return child;
+
 }

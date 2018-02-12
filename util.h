@@ -6,6 +6,7 @@
 #define ASSIGN1_C_UTIL_H
 
 
+void initRand();
 
 int getRandInt();
 

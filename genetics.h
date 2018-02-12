@@ -17,7 +17,7 @@ typedef struct {
 } Genotype;
 
 // utils
-
+void printSpecimen(Genotype* specimen);
 int routeMax(MDVRP* mdvrp);
 
 /// comparators
@@ -29,6 +29,11 @@ Genotype* initGenotype(MDVRP* mdvrp);
 Genotype* makeRandomSpecimen(MDVRP* mdvrp);
 Genotype** generateRandomPopulation(MDVRP* mdvrp, int size);
 void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int crossover, int popSize, double* fitness, Genotype** population);
+Genotype* cloneGenotype(Genotype* specimen);
+// population destruction
+void destroyPopulation(int popSize, Genotype** population);
+void destroySpecimen(Genotype* Specimen);
+
 
 // population manipulation
 /**
@@ -38,9 +43,16 @@ void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int crossove
  */
 void crossoverSelection(int popSize, double* fitness, int* parents);
 
+Genotype* crossover(MDVRP* mdvrp, Genotype* p1, Genotype* p2);
+
+
 // mutation
 void mutatePopulation(MDVRP* mdvrp, double mutationRate, int popSize, Genotype** population);
-void mutateSpecimen(MDVRP* mdvrp, double mutationRate, Genotype* specimen);
+void swapMutate(MDVRP *mdvrp, Genotype *specimen);
+void shuffleSegmentMutate(MDVRP *mdvrp, Genotype *specimen);
+void swapTruckMutate(MDVRP *mdvrp, Genotype *specimen);
+void swapInRouteMutate(MDVRP *mdvrp, Genotype *specimen);
+
 
 // validation
 int validateTruck(MDVRP* mdvrp, int truck, Genotype* genotype);

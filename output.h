@@ -8,8 +8,9 @@
 #include "mdvrp.h"
 #include "genetics.h"
 
-void initGNUPlotPipe();
+void initGNUPlot(int genomeLen);
 void drawMDVRP(MDVRP* mdvrp);
 void drawSpecimen(MDVRP* mdvrp, Genotype* genotype);
+void printSpecs(MDVRP* mdvrp, Genotype* specimen);
 
 #endif //ASSIGN1_C_OUTPUT_H
