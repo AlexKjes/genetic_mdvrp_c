@@ -57,7 +57,7 @@ MDVRP* loadProblem(char* filePath){
     size_t len = 0;
     ssize_t read;
 
-    MDVRP* mdvrp;
+    MDVRP* mdvrp = malloc(sizeof(MDVRP));
     int intBuff[20];
     int intLen;
     fp = fopen(filePath, "r");
@@ -72,7 +72,10 @@ MDVRP* loadProblem(char* filePath){
         parseLine(' ', line, &intLen, intBuff);
         // read header
         if(i == 0){
-            mdvrp = initMDVRP(intBuff[1], intBuff[2]);
+            mdvrp->nCustomers = intBuff[1];
+            mdvrp->nDepots = intBuff[2];
+            mdvrp->customers = malloc(intBuff[1] * sizeof(Customer));
+            mdvrp->depots = malloc(intBuff[2] * sizeof(Depot));
             mdvrp->trucksPerDepot = intBuff[0];
             // read depots part 1
         } else if (i<(mdvrp->nDepots+1)){

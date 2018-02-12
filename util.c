@@ -3,9 +3,11 @@
 //
 
 #include "util.h"
+#include "mdvrp.h"
 #include <gsl/gsl_rng.h>
 #include <time.h>
-
+#include <limits.h>
+#include <math.h>
 
 gsl_rng* r;
 
@@ -40,4 +42,20 @@ int getRandInt(){
 
 double normalRand(){
     return gsl_rng_uniform(r);
+}
+
+int closestDepot(MDVRP* mdvrp, int customer){
+
+    double closestDist = INT_MAX;
+    int closestIndex;
+
+    for (int i=0;i<mdvrp->nDepots;i++){
+        double dist = sqrt(pow(mdvrp->depots[i].x-mdvrp->customers[customer].x, 2) +
+                                   pow(mdvrp->depots[i].y-mdvrp->customers[customer].y,2));
+        if (dist < closestDist){
+            closestDist = dist;
+            closestIndex = i;
+        }
+    }
+    return closestIndex;
 }

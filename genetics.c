@@ -98,10 +98,41 @@ Genotype*  makeRandomSpecimen(MDVRP* mdvrp){
 }
 
 
+Genotype*  makeRandomSpecimen2(MDVRP* mdvrp){
+
+    Genotype* g = initGenotype(mdvrp);
+    // Number of customers per truck
+    int routeLengths[g->m];
+    for (int i=0;i<g->m;i++) { routeLengths[i]=0; }
+    // Shuffled customer indices
+    int shuffle[mdvrp->nCustomers];
+    for (int i=0;i<mdvrp->nCustomers;i++) { shuffle[i]=i; }
+    qsort(shuffle, (size_t)mdvrp->nCustomers, sizeof(int), randComp);
+    // shuffled truck indices
+    int rnd[mdvrp->trucksPerDepot];
+    for (int i=0;i<mdvrp->trucksPerDepot;i++){ rnd[i] = i; }
+    for (int i=0;i<mdvrp->nCustomers;i++){
+        qsort(rnd, (size_t)mdvrp->trucksPerDepot, sizeof(int), randComp);
+        for (int j=0;j<mdvrp->trucksPerDepot;j++){
+            int closest = closestDepot(mdvrp, shuffle[i]);
+            int truck = closest*mdvrp->nDepots + (rnd[j]);
+            if (routeLengths[truck] < g->n){
+                g->matrix[truck*g->n + routeLengths[truck]] = shuffle[i];
+                routeLengths[truck]++;
+                break;
+            }
+        }
+    }
+
+    return g;
+
+}
+
+
 Genotype** generateRandomPopulation(MDVRP* mdvrp, int size){
     Genotype** pop = malloc(sizeof(Genotype*)*size);
     for (int i=0;i<size;i++){
-        pop[i] = makeRandomSpecimen(mdvrp);
+        pop[i] = makeRandomSpecimen2(mdvrp);
     }
     return pop;
 }
@@ -233,7 +264,7 @@ void calculateFitness(MDVRP* mdvrp, Genotype** population, int popSize, double* 
             load = calculateTruckLoad(mdvrp, j, population[i]);
             if (load > mdvrp->depots[depot].maxLoad){
                 //printf("%d\n", ((load - mdvrp->depots[depot].maxLoad) + 1)*1000);
-                dist += ((load - mdvrp->depots[depot].maxLoad) + 1)*10;
+                dist += ((load - mdvrp->depots[depot].maxLoad) + 1) * 2;
             }
             fitness[i] += dist;
         }
@@ -255,8 +286,10 @@ int parentOrderComp(const void* p1, const void* p2){
 
 void crossoverSelection(int popSize, double* fitness, int* parents) {
 
+    double tmpFit[popSize];
+    for (int i=0;i<popSize;i++) { tmpFit[i] = fitness[i]; }
     double fitnessSum = 0;
-    for (int i = 0; i < popSize; i++) { fitnessSum += fitness[i]; }
+    for (int i = 0; i < popSize; i++) { fitnessSum += tmpFit[i]; }
 
     double p1[popSize * 2];
     double p2[popSize * 2];
@@ -285,7 +318,7 @@ void crossoverSelection(int popSize, double* fitness, int* parents) {
     for (int i = 0; i < popSize; i++) {
         // return if all tickets are taken
         if (p1Done && p2Done) { return; }
-        fitAcc += fitness[i];
+        fitAcc += tmpFit[i];
         while (1) {
             // give tickets to current specimen
             int iip1 = ip1, iip2 = ip2;
@@ -331,7 +364,7 @@ void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int doCrosso
 
     int parents[popSize*2];
     crossoverSelection(popSize, fitness, parents);
-    if (normalRand()<.5){
+    if (doCrossover){
         for (int i=0;i<popSize-elitism;i++){
             tmpPop[i+elitism] = crossover(mdvrp, population[parents[i*2]], population[parents[i*2+1]]);
             if(!validateSpecimen(mdvrp, tmpPop[i+elitism])) {
@@ -359,18 +392,18 @@ void mutatePopulation(MDVRP* mdvrp, double mutationRate, int popSize, Genotype**
     for (int i=0;i<popSize;i++){
         for (int j=0;j<mdvrp->nCustomers;j++) {
             if (normalRand() < mutationRate) {
-                switch (getRandInt() % 1) {
+                switch (getRandInt() % 3) {
                     case 0:
-                        swapMutate(mdvrp, population[i]);
+                        stopSwapMutate(mdvrp, population[i]);
                         break;
                     case 1:
-                        shuffleSegmentMutate(mdvrp, population[i]);
+                        rowInverseMutate(population[i]);
                         break;
                     case 2:
-                        swapTruckMutate(mdvrp, population[i]);
+                        columnInverseMutate(population[i]);
                         break;
                     case 3:
-                        swapInRouteMutate(mdvrp, population[i]);
+                        truckSwitchMutate(population[i]);
                         break;
                 }
             }
@@ -435,7 +468,7 @@ void shuffleSegmentMutate(MDVRP *mdvrp, Genotype *specimen){
 }
 
 
-void swapTruckMutate(MDVRP *mdvrp, Genotype *specimen){
+void truckSwitchMutate(Genotype *specimen){
 
     int t1 = getRandInt() % specimen->m;
     int t2 = getRandInt() % specimen->m;
@@ -525,7 +558,7 @@ Genotype* crossover(MDVRP* mdvrp, Genotype* p1, Genotype* p2){
     int idx;
     int parts[4] = {mdvrp->nCustomers/4, 2*mdvrp->nCustomers/4, 3*mdvrp->nCustomers/4, mdvrp->nCustomers};
     for (int i=0;i<mdvrp->nCustomers;i++){
-        if (i < parts[0] || (i > parts[1] && i < parts[2])) {
+        if (normalRand()>0.7){//(i < parts[0] || (i > parts[1] && i < parts[2])) {
             idx = map[i * 2];
         } else { idx = map[i * 2+1]; }
         if(child->matrix[idx] == -1) { child->matrix[idx] = i; }
@@ -550,5 +583,55 @@ Genotype* crossover(MDVRP* mdvrp, Genotype* p1, Genotype* p2){
 
     }
     return child;
+
+}
+
+
+void rowInverseMutate(Genotype* specimen){
+    int rndRow = getRandInt() % specimen->m;
+    int* row = &specimen->matrix[rndRow * specimen->n];
+    int randFrom = getRandInt() % (specimen->n-1);
+    int randTo = getRandInt() % (specimen->n - randFrom-1)+2;
+
+    int tmp[randTo];
+    for (int i=0;i<randTo;i++) { tmp[i] = row[randFrom+i]; }
+    for (int i=0;i<randTo;i++) {
+        row[randFrom+i] = tmp[randTo-i-1];
+    }
+
+}
+
+void columnInverseMutate(Genotype* specimen){
+
+    int randColumn = getRandInt() % specimen->n;
+    int randFrom = getRandInt() % (specimen->m-1);
+    int randTo = getRandInt() % (specimen->m - randFrom-1)+ 2;
+
+    int tmp[randTo];
+    for (int i=0;i<randTo;i++){
+        tmp[i] = specimen->matrix[(randFrom+i)*specimen->n+ randColumn];
+    }
+    for (int i=0;i<randTo;i++){
+        specimen->matrix[(randFrom+i)*specimen->n+ randColumn] = tmp[randTo-i-1];
+
+    }
+
+}
+
+
+void stopSwapMutate(MDVRP* mdvrp, Genotype* specimen){
+
+    int rnd1 = getRandInt() % mdvrp->nCustomers;
+    int rnd2 = getRandInt() % mdvrp->nCustomers;
+
+    for (int i=0;i<(specimen->m*specimen->n);i++){
+
+        if (rnd1 == specimen->matrix[i]){
+            specimen->matrix[i] = rnd2;
+        } else if (rnd2 == specimen->matrix[i]){
+            specimen->matrix[i] = rnd1;
+        }
+
+    }
 
 }

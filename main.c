@@ -4,11 +4,20 @@
 #include "output.h"
 #include "util.h"
 #include <gsl/gsl_statistics.h>
+#include <limits.h>
 
+double updateMutationRate(double* fitness, double* prevFitness, int popSize, double currentMr){
 
-double mutationRate(double* fitness, int popSize, double current_mr){
-
-    double var = gsl_stats_long_double_variance(fitness, sizeof(double), popSize);
+    double yolo = 0;
+    for (int i=0;i<popSize;i++){
+        yolo += fitness[i] > prevFitness[i];
+    }
+    yolo/=popSize;
+    //printf("%lf\n", yolo);
+    if (yolo < 1/2){
+        return currentMr*1.00001;
+    }
+    return currentMr*0.99999;
 
 }
 
@@ -16,42 +25,55 @@ double mutationRate(double* fitness, int popSize, double current_mr){
 
 int main() {
 
+
+
+
+
     initRand();
     // ./Testing Data/Data Files/p01
-    MDVRP* mdvrp = loadProblem("../Testing Data/Data Files/p02");
-    int popSize = 100;
+    MDVRP* mdvrp = loadProblem("../Testing Data/Data Files/p01");
+
+    int popSize = 50;
     Genotype** population = generateRandomPopulation(mdvrp, popSize);
-    double fitness[popSize];
+    double fitness[2][popSize];
     int genNum = 0;
-    double globalFittest = 999999999;
+    double globalFittest = INT_MAX;
+    double mutationRate = .01;
 
     initGNUPlot(mdvrp->nDepots*mdvrp->trucksPerDepot);
     drawMDVRP(mdvrp);
     while (1){
-        calculateFitness(mdvrp, population, popSize, fitness);
 
-        nextGeneration(mdvrp, 20, 0.02, 1, popSize, fitness, population);
+       calculateFitness(mdvrp, population, popSize, fitness[genNum%2]);
+       mutationRate = normalRand()/10; //updateMutationRate(fitness[genNum%2], fitness[(genNum+1)%2], popSize, mutationRate);
+       nextGeneration(mdvrp, 10, mutationRate, 1, popSize, fitness[genNum%2], population);
 
 
-        double fittest=9999999999;
-        for (int i=0;i<popSize;i++) {
-            if (fitness[i] < fittest) fittest = fitness[i];
-        }
+       double fittest=INT_MAX;
+       for (int i=0;i<popSize;i++) {
 
-        if (fittest<globalFittest) {
+           if (fitness[genNum%2][i] < fittest) fittest = fitness[genNum%2][i];
+       }
 
-            globalFittest = fittest;
-            printf("Gen: %d\nFittest: %d\n", genNum, (int) fittest);
-            printSpecs(mdvrp, population[0]);
+       if (fittest<globalFittest) {
 
-            drawSpecimen(mdvrp, population[0]);
-            printf("---------------------------------------------\n");
+           double meanfit=0;
+           for (int i=0;i<popSize;i++){ meanfit+=fitness[genNum%2][i]; }
+           meanfit/=popSize;
 
-        }
-        genNum++;
-        if (fittest==0){
-            break;
-        }
+           globalFittest = fittest;
+           printf("Gen: %d\tMutationRate: %lf\n", genNum, mutationRate);
+           printf("Fittesrt: %d\tMeanFitness: %lf\n", (int) fittest, meanfit);
+           printSpecs(mdvrp, population[0]);
+
+           drawSpecimen(mdvrp, population[0]);
+           printf("---------------------------------------------\n");
+
+       }
+       genNum++;
+       if (fittest==0){
+           break;
+       }
     }
 
 

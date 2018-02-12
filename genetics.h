@@ -27,6 +27,7 @@ int parentOrderComp(const void* p1, const void* p2);
 // population creation
 Genotype* initGenotype(MDVRP* mdvrp);
 Genotype* makeRandomSpecimen(MDVRP* mdvrp);
+Genotype* makeRandomSpecimen2(MDVRP* mdvrp);
 Genotype** generateRandomPopulation(MDVRP* mdvrp, int size);
 void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int crossover, int popSize, double* fitness, Genotype** population);
 Genotype* cloneGenotype(Genotype* specimen);
@@ -50,8 +51,12 @@ Genotype* crossover(MDVRP* mdvrp, Genotype* p1, Genotype* p2);
 void mutatePopulation(MDVRP* mdvrp, double mutationRate, int popSize, Genotype** population);
 void swapMutate(MDVRP *mdvrp, Genotype *specimen);
 void shuffleSegmentMutate(MDVRP *mdvrp, Genotype *specimen);
-void swapTruckMutate(MDVRP *mdvrp, Genotype *specimen);
+void truckSwitchMutate(Genotype *specimen);
 void swapInRouteMutate(MDVRP *mdvrp, Genotype *specimen);
+////
+void rowInverseMutate(Genotype* specimen);
+void columnInverseMutate(Genotype* specimen);
+void stopSwapMutate(MDVRP* mdvrp, Genotype* specimen);
 
 
 // validation

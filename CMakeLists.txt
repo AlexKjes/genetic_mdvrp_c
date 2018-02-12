@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.8)
 project(assign1_c)
 
 set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_FLAGS -O3)
 
 link_libraries(gsl openblas m)
 
