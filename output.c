@@ -13,13 +13,20 @@ FILE* routesData;
 
 
 
-const char* rfp = "/tmp/routes.data";
-const char* mfp = "/tmp/mdvrp.data";
+char* rfp; //= "/tmp/routes.data";
+char* mfp; //= "/tmp/mdvrp.data";
 
 
-void initGNUPlot(int genomeLen){
+void initGNUPlot(int genomeLen, int fileEnum){
 
-    char* confPath = "/tmp/plot.conf";
+    char* confPath[50];// = "/tmp/conf.data";
+    sprintf(confPath, "/tmp/conf%d.data", fileEnum);
+
+    rfp = malloc(sizeof(char)*50);
+    sprintf(rfp, "/tmp/routes%d.data", fileEnum);
+    mfp = malloc(sizeof(char)*50);
+    sprintf(mfp, "/tmp/mdvrp%d.data", fileEnum);
+
 
     fclose(fopen(rfp, "w"));
     routesData = fopen(rfp, "w");
@@ -49,7 +56,12 @@ void initGNUPlot(int genomeLen){
     }
     fprintf(plotConf, "\npause 1\nreread\n");
     fclose(plotConf);
-    gpp = popen("gnuplot -c /tmp/plot.conf", "w");
+
+    char* plotCmd = malloc(sizeof(char)*50);
+    sprintf(plotCmd, "gnuplot -c %s", confPath);
+    gpp = popen(plotCmd, "w");
+
+
     //fprintf(gpp, "load \"%s\"", confPath);
 
 }
@@ -98,16 +110,28 @@ void drawSpecimen(MDVRP* mdvrp, Genotype* genotype){
 void printSpecs(MDVRP* mdvrp, Genotype* specimen){
 
     int depot;
+    printf("dist: %lf\tValid: %d\n", calculateSpecimenDistance(mdvrp, specimen), validateSpecimen2(mdvrp, specimen));
     for (int i=0;i<specimen->m;i++){
-        depot = i / mdvrp->trucksPerDepot;
+        // continue if truck is empty
+        int empty = 1;
+        for (int j=0;j<specimen->n;j++){
+            if (specimen->matrix[i*specimen->n+j] != -1) {
+                empty = 0;
+                break;
+            }
+        }
+        if(empty) continue;
 
-        printf("%d\t%d\t", i, depot);
+        depot = i / mdvrp->trucksPerDepot;
+        printf("%d\t%d\t", depot+1, (i % mdvrp->trucksPerDepot)+1);
+        printf("%.2lf\t", calculateTruckDistance(mdvrp, i, specimen));
         printf("%d\t", calculateTruckLoad(mdvrp, i, specimen));
-        printf("%lf\t", calculateTruckDistance(mdvrp, i, specimen));
+        printf("%d\t", 0);
         for (int j=0;j<specimen->n;j++){
             if (specimen->matrix[i*specimen->n+j] != -1)
-                printf("%d\t", specimen->matrix[i*specimen->n+j]);
+                printf("%d\t", specimen->matrix[i*specimen->n+j]+1);
         }
-        printf("\n");
+
+        printf("0\n");
     }
 }

@@ -97,7 +97,7 @@ Genotype*  makeRandomSpecimen(MDVRP* mdvrp){
 
 }
 
-
+/// Distributes customers to closest depots
 Genotype*  makeRandomSpecimen2(MDVRP* mdvrp){
 
     Genotype* g = initGenotype(mdvrp);
@@ -112,13 +112,15 @@ Genotype*  makeRandomSpecimen2(MDVRP* mdvrp){
     int rnd[mdvrp->trucksPerDepot];
     for (int i=0;i<mdvrp->trucksPerDepot;i++){ rnd[i] = i; }
     for (int i=0;i<mdvrp->nCustomers;i++){
+
         qsort(rnd, (size_t)mdvrp->trucksPerDepot, sizeof(int), randComp);
+
         for (int j=0;j<mdvrp->trucksPerDepot;j++){
             int closest = closestDepot(mdvrp, shuffle[i]);
-            int truck = closest*mdvrp->nDepots + (rnd[j]);
+            int truck = closest*mdvrp->trucksPerDepot + (rnd[j]);
             if (routeLengths[truck] < g->n){
                 g->matrix[truck*g->n + routeLengths[truck]] = shuffle[i];
-                routeLengths[truck]++;
+                routeLengths[truck]+=1;
                 break;
             }
         }
@@ -138,6 +140,23 @@ Genotype** generateRandomPopulation(MDVRP* mdvrp, int size){
 }
 
 
+int hasAllCustomersOnce(MDVRP* mdvrp, Genotype* genotype){
+
+    int hist[mdvrp->nCustomers];
+    for (int i=0;i<mdvrp->nCustomers;i++) { hist[i]=0; }
+
+    for (int i=0;i<genotype->n*genotype->m;i++){
+        if (genotype->matrix != -1){
+            hist[genotype->matrix[i]]++;
+        }
+    }
+
+    for (int i=0;i<mdvrp->nCustomers;i++) {
+        if (hist[i] != 1) return 0;
+    }
+
+    return 1;
+}
 
 /// Test if a truck satisfies hard constraints
 int validateTruck(MDVRP* mdvrp, int truck, Genotype* genotype){
@@ -166,6 +185,16 @@ int validateTruck(MDVRP* mdvrp, int truck, Genotype* genotype){
     return 1;
 }
 
+
+int validateSpecimen2(MDVRP* mdvrp, Genotype* genotype) {
+
+    for (int i=0;i<genotype->m;i++){
+        if (!validateTruck(mdvrp, i, genotype)){
+            return 0;
+        }
+    }
+    return 1;
+}
 
 int validateSpecimen(MDVRP* mdvrp, Genotype* genotype){
     /*
@@ -345,6 +374,23 @@ void crossoverSelection(int popSize, double* fitness, int* parents) {
 }
 
 
+void tournamentSelection(int popSize, double* fitness, int* parents){
+
+    int tourneySize;
+    if (popSize*0.05 > 5) tourneySize = (int)round(popSize*0.05);
+    else tourneySize = 5;
+
+    for (int i =0;i<popSize*2;i++){
+        int leader = getRandInt() % popSize;
+        for (int j=0;j<tourneySize-1;j++){
+            int rnd = getRandInt() % popSize;
+            if (fitness[rnd] < fitness[leader]) leader = rnd;
+        }
+        parents[i] = leader;
+    }
+}
+
+
 void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int doCrossover, int popSize, double* fitness, Genotype** population){
 
     Genotype** tmpPop = malloc(sizeof(Genotype*)*popSize);
@@ -363,7 +409,14 @@ void nextGeneration(MDVRP* mdvrp, int elitism, double mutationRate, int doCrosso
     }
 
     int parents[popSize*2];
-    crossoverSelection(popSize, fitness, parents);
+    //crossoverSelection(popSize, fitness, parents);
+    tournamentSelection(popSize, fitness, parents);
+    /*
+    for (int i=0;i<popSize;i++){
+        printf("%d\t%d\n", parents[i*2], parents[i*2+1]);
+    }
+    getchar();
+     */
     if (doCrossover){
         for (int i=0;i<popSize-elitism;i++){
             tmpPop[i+elitism] = crossover(mdvrp, population[parents[i*2]], population[parents[i*2+1]]);
@@ -558,7 +611,7 @@ Genotype* crossover(MDVRP* mdvrp, Genotype* p1, Genotype* p2){
     int idx;
     int parts[4] = {mdvrp->nCustomers/4, 2*mdvrp->nCustomers/4, 3*mdvrp->nCustomers/4, mdvrp->nCustomers};
     for (int i=0;i<mdvrp->nCustomers;i++){
-        if (normalRand()>0.7){//(i < parts[0] || (i > parts[1] && i < parts[2])) {
+        if (normalRand()>0.5){//(i < parts[0] || (i > parts[1] && i < parts[2])) {
             idx = map[i * 2];
         } else { idx = map[i * 2+1]; }
         if(child->matrix[idx] == -1) { child->matrix[idx] = i; }

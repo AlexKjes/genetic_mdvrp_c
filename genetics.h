@@ -43,6 +43,8 @@ void destroySpecimen(Genotype* Specimen);
  * @param parents array of parents indices. Twice the size of population. [parent1, paren2, parent1, paren2...]
  */
 void crossoverSelection(int popSize, double* fitness, int* parents);
+void tournamentSelection(int popSize, double* fitness, int* parents);
+
 
 Genotype* crossover(MDVRP* mdvrp, Genotype* p1, Genotype* p2);
 
@@ -62,6 +64,9 @@ void stopSwapMutate(MDVRP* mdvrp, Genotype* specimen);
 // validation
 int validateTruck(MDVRP* mdvrp, int truck, Genotype* genotype);
 int validateSpecimen(MDVRP* mdvrp, Genotype* genotype);
+int validateSpecimen2(MDVRP* mdvrp, Genotype* genotype);
+
+int hasAllCustomersOnce(MDVRP* mdvrp, Genotype* genotype);
 
 // calculations
 double calculateTruckDistance(MDVRP* mdvrp, int truck, Genotype* genotype);
